@@ -35,8 +35,17 @@ function Compare-CIPPIntuneObject {
             'isSynced'
             'locationInfo',
             'templateId',
-            'source'
+            'source',
+            'package',
+            'assignments'
         )
+
+        # App protection templates store apps[] and deployedAppCount, but deployment strips apps
+        # and the policy read-back never returns either, so they can never match. Scoped to
+        # AppProtection because Device configs carry legitimate nested 'apps' (e.g. kiosk profiles).
+        if ($CompareType -contains 'AppProtection') {
+            $defaultExcludeProperties = $defaultExcludeProperties + @('apps', 'deployedAppCount')
+        }
 
         $excludeProps = $defaultExcludeProperties + $ExcludeProperties
         $result = [System.Collections.Generic.List[PSObject]]::new()
@@ -173,11 +182,12 @@ function Compare-CIPPIntuneObject {
                 if (ShouldCompareAsUnorderedSet -PropertyPath $PropertyPath) {
                     # For unordered sets, compare contents regardless of order
                     if ($Object1.Count -ne $Object2.Count) {
-                        # Different lengths - report the difference
+                        # Different lengths - report the actual values so a technician
+                        # can see exactly what differs and decide on the action.
                         $result.Add([PSCustomObject]@{
                                 Property      = $PropertyPath
-                                ExpectedValue = "Array with $($Object1.Count) items"
-                                ReceivedValue = "Array with $($Object2.Count) items"
+                                ExpectedValue = ($Object1 -join ', ')
+                                ReceivedValue = ($Object2 -join ', ')
                             })
                     } else {
                         # Same length - check if all items exist in both arrays
@@ -369,6 +379,17 @@ function Compare-CIPPIntuneObject {
             if ($item.id) { $intuneCollectionIndex[$item.id] = $item }
         }
 
+        # Settings Intune generates per tenant. The Defender onboarding blob embeds the tenant's own
+        # workspace identity, so a template captured in one tenant can never match another - it
+        # reports drift on every run, remediation cannot resolve it, and the comparison shows a
+        # friendly option name on one side against a raw identifier on the other.
+        $tenantSpecificSettings = @(
+            'device_vendor_msft_windowsadvancedthreatprotection_onboarding',
+            'device_vendor_msft_windowsadvancedthreatprotection_onboarding_fromconnector',
+            'device_vendor_msft_windowsadvancedthreatprotection_offboarding',
+            'device_vendor_msft_windowsadvancedthreatprotection_offboarding_fromconnector'
+        )
+
         # Recursive function to process group setting collections at any depth
         function Process-GroupSettingChildren {
             param(
@@ -448,7 +469,7 @@ function Compare-CIPPIntuneObject {
                                 }
                                 $values.Add($displayValue)
                             }
-                            $childValue = $values -join ', '
+                            $childValue = ($values | Sort-Object) -join ', '
 
                             $results.Add([PSCustomObject]@{
                                     Key    = "GroupChild-$($child.settingDefinitionId)"
@@ -464,7 +485,7 @@ function Compare-CIPPIntuneObject {
                             foreach ($simpleValue in $child.simpleSettingCollectionValue) {
                                 $values.Add($simpleValue.value)
                             }
-                            $childValue = $values -join ', '
+                            $childValue = ($values | Sort-Object) -join ', '
 
                             $results.Add([PSCustomObject]@{
                                     Key    = "GroupChild-$($child.settingDefinitionId)"
@@ -731,6 +752,8 @@ function Compare-CIPPIntuneObject {
                 $settingId = $key.Substring(8)
             }
 
+            if ($settingId -in $tenantSpecificSettings) { continue }
+
             $settingDefinition = $intuneCollectionIndex[$settingId]
 
             $refRawValue = if ($refItem) { $refItem.Value } else { $null }
@@ -765,7 +788,9 @@ function Compare-CIPPIntuneObject {
                 $key
             }
 
-            if ($refRawValue -ne $diffRawValue -or $null -eq $refRawValue -or $null -eq $diffRawValue) {
+            # Flag when values differ or the setting exists on only one side; a setting present on both sides with equal (even null) values is compliant
+            $presenceMismatch = ($null -eq $refItem) -xor ($null -eq $diffItem)
+            if ($refRawValue -ne $diffRawValue -or $presenceMismatch) {
                 $result.Add([PSCustomObject]@{
                         Property      = $label
                         ExpectedValue = $refValue

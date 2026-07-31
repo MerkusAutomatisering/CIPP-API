@@ -25,7 +25,7 @@
   {
     "Id": "SuperAdminNG",
     "Name": "Super Admin",
-    "Description": "Additional super admin pages for CIPP instances (CIPP Users, SSO, Container management).",
+    "Description": "Additional super admin pages for CIPP instances (CIPP Users, SSO, Container management, Custom Domains).",
     "Enabled": false,
     "AllowUserToggle": false,
     "Timers": [],
@@ -33,39 +33,16 @@
       "ExecCIPPUsers",
       "ListCIPPUsers",
       "ExecContainerManagement",
+      "ExecAppServiceDomains",
       "ListContainerLogs",
       "ListWorkerHealth"
     ],
     "Pages": [
       "/cipp/advanced/super-admin/cipp-users",
       "/cipp/advanced/super-admin/container",
+      "/cipp/advanced/super-admin/custom-domains",
       "/cipp/advanced/container-logs",
       "/cipp/advanced/worker-health"
-    ],
-    "Hidden": true
-  },
-  {
-    "Id": "CopilotAI",
-    "Name": "Copilot & AI",
-    "Description": "Under Development: Microsoft 365 Copilot and AI management pages including settings, usage reports, Agent365 packages, and Shadow AI analysis.",
-    "Enabled": false,
-    "AllowUserToggle": false,
-    "Timers": [],
-    "Endpoints": [
-      "ListCopilotSettings",
-      "ExecCopilotSettings",
-      "ListCopilotUsage",
-      "ListAgent365Packages",
-      "ListAgent365PackageDetail",
-      "ListShadowAI"
-    ],
-    "Pages": [
-      "/copilot/settings",
-      "/copilot/shadow-ai",
-      "/copilot/agent365/packages",
-      "/copilot/reports/copilot-adoption",
-      "/copilot/reports/copilot-usage",
-      "/copilot/reports/copilot-trend"
     ],
     "Hidden": true
   },
@@ -94,6 +71,36 @@
     ],
     "Pages": [
       "/cipp/advanced/diagnostics"
+    ],
+    "Hidden": true
+  },
+  {
+    "Id": "BackendSettings",
+    "Name": "Backend Settings",
+    "Description": "Backend settings page showing Azure resource URLs. Hidden on hosted instances.",
+    "Enabled": true,
+    "AllowUserToggle": false,
+    "Timers": [],
+    "Endpoints": [
+      "ExecBackendURLs"
+    ],
+    "Pages": [
+      "/cipp/settings/backend"
+    ],
+    "Hidden": true
+  },
+  {
+    "Id": "FunctionOffloading",
+    "Name": "Function Offloading",
+    "Description": "Function offloading configuration page. Hidden in CIPP-NG.",
+    "Enabled": true,
+    "AllowUserToggle": false,
+    "Timers": [],
+    "Endpoints": [
+      "ExecOffloadFunctions"
+    ],
+    "Pages": [
+      "/cipp/advanced/super-admin/function-offloading"
     ],
     "Hidden": true
   }
